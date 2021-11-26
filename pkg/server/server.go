@@ -10,7 +10,7 @@ import (
 	"sync"
 )
 
-type HandlerFunc func(conn *net.Conn)
+type HandlerFunc func(conn net.Conn)
 
 type Server struct {
 	addr     string
@@ -23,9 +23,9 @@ func NewServer(addr string) *Server {
 }
 
 func (s *Server) Register(path string, handler HandlerFunc) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.mu.RLock()
 	s.handlers[path] = handler
+	s.mu.RUnlock()
 }
 
 func (s *Server) Start() error {
@@ -47,11 +47,7 @@ func (s *Server) Start() error {
 }
 
 func (s *Server) handle(conn net.Conn) {
-	defer func() {
-		if err := conn.Close(); err != nil {
-			log.Print(err)
-		}
-	}()
+	defer conn.Close()
 
 	s.mu.RLock()
 	buf := make([]byte, 4096)
@@ -76,10 +72,12 @@ func (s *Server) handle(conn net.Conn) {
 
 	}
 
-	_, path, _ := parts[0], parts[1], parts[2]
-	handler := s.handlers[path]
+	for path, handler := range s.handlers {
+		if parts[1] == path {
+			handler(conn)
+		}
+	}
 	s.mu.RUnlock()
-	handler(conn)
 }
 
 func (s *Server) PrintResponse(conn net.Conn, response string) (err error) {
