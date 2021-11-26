@@ -10,7 +10,7 @@ import (
 	"sync"
 )
 
-type HandlerFunc func(conn net.Conn)
+type HandlerFunc func(conn *net.Conn)
 
 type Server struct {
 	addr     string
